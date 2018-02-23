@@ -81,9 +81,10 @@ class RenameSpaceSurfacesBasedonParentSpaceandOrientation < OpenStudio::Ruleset:
         alpha =  (counter) % 26 #gives me alpha character to use for name
         if counter > 25 #this is to address spaces with more than 26 surfaces with same azimuth. Adds second leading alpha character
           alpha2 = ((counter)/26).truncate-1
-          surface.setName("#{base_name}:#{suffix[alpha2]}#{suffix[alpha]}")
+          #using _ instead of : to avoid issue in Honeybee readEPSrfResult script
+          surface.setName("#{base_name}_#{suffix[alpha2]}#{suffix[alpha]}")
         else
-          surface.setName("#{base_name}:#{suffix[alpha]}") #this will be name until more than 26
+          surface.setName("#{base_name}_#{suffix[alpha]}") #this will be name until more than 26
         end
         counter += 1
       end
