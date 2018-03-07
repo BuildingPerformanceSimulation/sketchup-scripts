@@ -108,6 +108,9 @@ class AddExteriorFixedShadingToWindowsInSelection < OpenStudio::Ruleset::ModelUs
     
     shading_surface_group = OpenStudio::Model::ShadingSurfaceGroup.new(model)
     shading_surface_group.setName("#{surface.name.to_s} Shading Surfaces")
+    shading_surface_group.setShadedSubSurface(surface)
+    shading_surface_group.setSpace(surface.space.get)
+    shading_surface_group.setShadingSurfaceType("Space")
     
     for i in (1..count)
       overhang_vertices = []
@@ -129,7 +132,7 @@ class AddExteriorFixedShadingToWindowsInSelection < OpenStudio::Ruleset::ModelUs
       new_vertices = face_transform * overhang_vertices
       shading_surface = OpenStudio::Model::ShadingSurface.new(new_vertices,model)
       shading_surface.setName("#{surface.name.to_s} Shading Surface #{i}")
-      shading_surface.setShadingSurfaceGroup(shading_surface_group)    
+      shading_surface.setShadingSurfaceGroup(shading_surface_group)   
     end
 
     return shading_surface_group
