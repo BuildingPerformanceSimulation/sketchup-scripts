@@ -91,20 +91,18 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
     if not no_space_type_spaces.empty?
       writeSpaceTypeToFile(file, model, "<no space type>", no_space_type_spaces)
     end
-
+    
     file.puts
   end
   
-  
   def writeSpaceTypeToFile(file, model, space_type_name, spaces)
-    
     floor_area = 0
     spaces.each do |space|
       floor_area += space.floorArea
     end
-
+    
     num_spaces = spaces.size
-
+    
     lpd = 0
     lp = 0
     eed = 0
@@ -146,12 +144,11 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
         oa_ach = round(design_oa.outdoorAirFlowAirChangesperHour,2)
       end
     end
-
+    
     floor_area = round(ft2_per_m2*floor_area, 2)
-
+    
     file.puts "#{space_type_name},#{floor_area},#{num_spaces},#{lpd},#{lp},#{eed},#{eep},#{pd},#{pd2},#{oa_method},#{oa_person},#{oa_area},#{oa_rate},#{oa_ach}" 
   end
-  
 
   def writeBuildingStoriesToFile(file, model)
     file.puts "Building Story, Floor Area (ft^2), Number of Spaces" 
@@ -171,27 +168,23 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
     if not no_story_spaces.empty?
       writeBuildingStoryToFile(file, "<no building story>", no_story_spaces)
     end
-
+    
     file.puts
   end
   
-  
   def writeBuildingStoryToFile(file, story_name, spaces)
-
     floor_area = 0
     spaces.each do |space|
       floor_area += space.floorArea
     end 
     floor_area = round(ft2_per_m2*floor_area, 2)
-
+    
     num_spaces = spaces.size
-
+    
     file.puts "#{story_name}, #{floor_area}, #{num_spaces}" 
   end
   
-  
   def writeSpacesToFile(file, model)
-  
     file.puts "Space,Space Type,Thermal Zone,Building Story,Floor Area (ft^2),Lighting Power Density (W/ft^2),Electric Equipment Density (W/ft^2),People Density (people/1000*ft^2)" 
     
     space_types = model.getSpaceTypes.sort {|x, y| x.name.to_s <=> y.name.to_s}
@@ -214,26 +207,25 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
   end
   
   def writeSpaceToFile(file, space_type_name, space)
-
     space_name = space.name.to_s
-        
+    
     thermal_zone = space.thermalZone
     thermal_zone_name = "<no thermal zone>"
     if not thermal_zone.empty?
       thermal_zone_name = thermal_zone.get.name.to_s
     end
-
+    
     building_story = space.buildingStory
     building_story_name = "<no building story>"
     if not building_story.empty?
       building_story_name = building_story.get.name.to_s
     end
-
+    
     floor_area = round(ft2_per_m2*space.floorArea, 2)
     lpd = round(m2_per_ft2*space.lightingPowerPerFloorArea, 2)
     eed = round(m2_per_ft2*space.electricEquipmentPowerPerFloorArea, 2)
     pd = round(1000*m2_per_ft2*space.peoplePerFloorArea, 2)
-
+    
     file.puts "#{space_name},#{space_type_name},#{thermal_zone_name},#{building_story_name},#{floor_area},#{lpd},#{eed},#{pd}" 
   end
   
@@ -244,12 +236,11 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
     zones.each do |zone|
       writeThermalZoneToFile(file, zone)
     end  
-
+    
     file.puts
   end
   
   def writeThermalZoneToFile(file, zone)
-  
     zone_name = zone.name.to_s
     
     air_loop_name = "<n/a>"
@@ -281,7 +272,7 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
         heating_schedule = zone_heating_schedule.get.name.to_s
       end
     end
-
+    
     if not zone_humidistat.empty?
       zone_humidistat = zone_humidistat.get
       zone_humidifying_schedule = zone_humidistat.humidifyingRelativeHumiditySetpointSchedule
@@ -306,22 +297,136 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
     file.puts "#{zone_name},#{air_loop_name},#{cooling_schedule},#{heating_schedule},#{humidifying_schedule},#{dehumidifying_schedule},#{zone_multiplier},#{num_spaces}"
   
   end
-
+  
+  def writeAirLoopsToFile(file, model)
+    file.puts "Air Loop Name,Schedule,Night Cycle,Load Sizing Type,OA System,Economizer,DCV,Heat Exchanger,Heat Recovery 100% Heating Effectiveness,Supply Fan,Return Fan,Relief Fan,Setpoint Type"
+    
+    air_loops = model.getAirLoopHVACs.sort {|x, y| x.name.to_s <=> y.name.to_s}
+    air_loops.each do |air_loop|
+      writeAirLoopToFile(file, model, air_loop)
+    end 
+    
+    file.puts  
+  end
+  
+  def writeAirLoopToFile(file, model, air_loop)
+    air_loop_name  = air_loop.name.to_s
+    
+    air_loop_schedule = air_loop.availabilitySchedule.name.to_s
+    air_loop_night_cycle = air_loop.nightCycleControlType
+    
+    air_loop_sizing = air_loop.sizingSystem
+    air_loop_sizing_type = air_loop_sizing.typeofLoadtoSizeOn
+    
+    oa_system_name = "<n/a>"
+    economizer_type = "<n/a>"
+    dcv = "<n/a>"
+    if not air_loop.airLoopHVACOutdoorAirSystem.empty?
+      oa_system = air_loop.airLoopHVACOutdoorAirSystem.get
+      oa_system_name = oa_system.name.to_s
+      oa_controller = oa_system.getControllerOutdoorAir
+      economizer_type = oa_controller.getEconomizerControlType
+      controller_mechanical_ventilation = oa_controller.controllerMechanicalVentilation
+      dcv = controller_mechanical_ventilation.demandControlledVentilation
+    end
+    
+    heat_exchanger_name = "<n/a>"
+    heat_sensible_heating_effectiveness_100 = "<n/a>"
+    heat_exchangers = model.getHeatExchangerAirToAirSensibleAndLatents
+    heat_exchangers.each do |heat_exchanger|
+      if not heat_exchanger.airLoopHVAC.empty?
+        heat_exchanger_air_loop_name = heat_exchanger.airLoopHVAC.get.name.to_s
+        if heat_exchanger_air_loop_name == air_loop_name
+          heat_exchanger_name = heat_exchanger.name.to_s
+          heat_sensible_heating_effectiveness_100 = heat_exchanger.sensibleEffectivenessat100HeatingAirFlow
+        end
+      end
+    end
+    
+    supply_fan = air_loop.supplyFan
+    supply_fan_name = supply_fan.get.name.to_s
+    
+    return_fan_name = "<n/a>"
+    relief_fan_name = "<n/a>"
+    if not air_loop.returnFan.empty?
+      return_fan_name = air_loop.returnFan.get.name.to_s
+    end
+    if not air_loop.reliefFan.empty?
+      relief_fan_name = air_loop.reliefFan.get.name.to_s
+    end
+    
+    setpoint_manager_name = "<n/a>"    
+    setpoint_managers = model.getSetpointManagers
+    setpoint_managers.each do |setpoint_manager|
+      if not setpoint_manager.airLoopHVAC.empty?
+        setpoint_manager_air_loop_name = setpoint_manager.airLoopHVAC.get.name.to_s
+        if setpoint_manager_air_loop_name == air_loop_name
+          setpoint_manager_name = setpoint_manager.name.to_s
+        end
+      end
+    end
+    
+    file.puts "#{air_loop_name},#{air_loop_schedule},#{air_loop_night_cycle},#{air_loop_sizing_type},#{oa_system_name},#{economizer_type},#{dcv},#{heat_exchanger_name},#{heat_sensible_heating_effectiveness_100},#{supply_fan_name},#{return_fan_name},#{relief_fan_name},#{setpoint_manager_name}"
+  end
+  
+  def writeFansToFile(file, model)
+    file.puts "Fan Name,Type,Schedule,Static Pressure (inH2O),Sizing (cfm),Fan Efficiency,Motor Efficiency"
+    
+    fans = model.getFanVariableVolumes.sort {|x, y| x.name.to_s <=> y.name.to_s}
+    fans += model.getFanConstantVolumes.sort {|x, y| x.name.to_s <=> y.name.to_s}
+    fans += model.getFanOnOffs.sort {|x, y| x.name.to_s <=> y.name.to_s}
+    fans += model.getFanZoneExhausts.sort {|x, y| x.name.to_s <=> y.name.to_s}
+    fans.each do |fan|
+      writeFanToFile(file, fan)
+    end 
+    
+    file.puts  
+  end
+  
+  def writeFanToFile(file, fan)
+    fan_name = fan.name.to_s
+    
+    if not fan.to_FanVariableVolume.empty?
+      fan_type = "Variable Volume"
+    elsif not fan.to_FanConstantVolume.empty?
+      fan_type = "Constant Volume"
+    elsif not fan.to_FanZoneExhaust.empty?
+      fan_type = "Zone Exhaust"
+    else # on off
+      fan_type = "On Off"
+    end
+    
+    fan_schedule = fan.availabilitySchedule.name.to_s    
+    fan_static_pressure = fan.pressureRise
+    fan_static_pressure = OpenStudio.convert(fan_static_pressure,"Pa","inH_{2}O").get
+    
+    if fan.isMaximumFlowRateAutosized 
+      fan_max_flowrate = "autosize"
+    else
+      fan_max_flowrate = fan.maximumFlowRate.get
+      fan_max_flowrate = OpenStudio.convert(fan_max_flowrate,"m^3/s","ft^3/min").get
+    end
+    
+    fan_efficiency = fan.fanEfficiency
+    fan_motor_efficiency = fan.motorEfficiency
+    
+    file.puts "#{fan_name},#{fan_type},#{fan_schedule},#{fan_static_pressure},#{fan_max_flowrate},#{fan_efficiency},#{fan_motor_efficiency}"
+  end
+  
   def writeConstructionsToFile(file, model)
     file.puts "Construction Name,Area (ft^2),Type,Thermal Conductance (Btu/ft^2-h-R),R-value (ft^2*h*R/Btu),U-Value (Btu/ft^2-h-R)"
     
     constructions = model.getConstructionBases.sort {|x, y| x.name.to_s <=> y.name.to_s}
     constructions.each do |construction|
       writeConstructionToFile(file, construction)
-    end  
-
+    end
+    
     file.puts
   end
-
-  def writeConstructionToFile(file, construction)
   
+  def writeConstructionToFile(file, construction)
     construction_name = construction.name.to_s
-
+    
     net_area = construction.getNetArea()
     
     if net_area > 0 #only record if used in building
@@ -363,7 +468,7 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
         end
         u_value = round(u_value, 3)
       end
-
+      
       file.puts "#{construction_name},#{net_area},#{type},#{thermal_conductance},#{r_value_ip},#{u_value}"
     end
     
@@ -387,7 +492,9 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
       writeSpaceTypesToFile(file, model)
       writeSpacesToFile(file, model)
       writeThermalZonesToFile(file, model)
-      writeConstructionsToFile(file,model)
+      writeAirLoopsToFile(file, model)
+      writeFansToFile(file, model)
+      writeConstructionsToFile(file, model)
     end
     
     return true
