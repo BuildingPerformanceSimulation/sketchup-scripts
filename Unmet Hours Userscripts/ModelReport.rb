@@ -230,7 +230,7 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
   end
   
   def writeThermalZonesToFile(file, model)
-    file.puts "Zone,Air Loop,Cooling Thermostat Schedule,Heating Thermostat Schedule,Humidifying Setpoint Schedule,Dehumidifying Setpoint Schedule,Zone Multiplier,Number of Spaces" 
+    file.puts "Zone,Air Loop,Number of Spaces,Cooling Thermostat Schedule,Heating Thermostat Schedule,Humidifying Setpoint Schedule,Dehumidifying Setpoint Schedule,Zone Multiplier,Cooling Design Method,Cooling Design SAT (F),Cooling Design Temperature Difference (R),Heating Design Method,Heating Design SAT (F),Heating Design Temperature Difference (R),DOAS,DOAS Low Temperature (F),DOAS High Temperature (F)"
     
     zones = model.getThermalZones.sort {|x, y| x.name.to_s <=> y.name.to_s}
     zones.each do |zone|
@@ -250,6 +250,8 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
       air_loop_terminal = air_loop_terminal.get
       air_loop_name = air_loop_terminal.loop.get.name.to_s
     end
+    
+    num_spaces = zone.spaces.size
     
     cooling_schedule = "<n/a>"
     heating_schedule = "<n/a>"
@@ -290,12 +292,42 @@ class ModelReport < OpenStudio::Ruleset::ModelUserScript
     zone_multiplier = 1    
     if not zone.multiplier.nil?
       zone_multiplier = zone.multiplier
+    end    
+    
+    zone_sizing = zone.sizingZone
+    cooling_design_method = zone_sizing.zoneCoolingDesignSupplyAirTemperatureInputMethod
+    cooling_design_SAT = zone_sizing.zoneCoolingDesignSupplyAirTemperature
+    cooling_design_SAT = OpenStudio.convert(cooling_design_SAT,"C","F").get
+    cooling_design_SAT_diff = zone_sizing.zoneCoolingDesignSupplyAirTemperatureDifference
+    cooling_design_SAT_diff = OpenStudio.convert(cooling_design_SAT_diff,"K","R").get
+    heating_design_method = zone_sizing.zoneHeatingDesignSupplyAirTemperatureInputMethod
+    heating_design_SAT = zone_sizing.zoneHeatingDesignSupplyAirTemperature
+    heating_design_SAT = OpenStudio.convert(heating_design_SAT,"C","F").get
+    heating_design_SAT_diff = zone_sizing.zoneHeatingDesignSupplyAirTemperatureDifference
+    heating_design_SAT_diff = OpenStudio.convert(heating_design_SAT_diff,"K","R").get
+    
+    account_for_doas = zone_sizing.accountforDedicatedOutdoorAirSystem
+    doas_low_temp = "<n/a>"
+    doas_high_temp = "<n/a>"
+    
+    if account_for_doas
+      if zone_sizing.isDedicatedOutdoorAirLowSetpointTemperatureforDesignAutosized
+        doas_low_temp = "autosize"
+      else
+        doas_low_temp =  zone_sizing.dedicatedOutdoorAirLowSetpointTemperatureforDesign.get
+        doas_low_temp = OpenStudio.convert(doas_low_temp,"C","F").get
+      end
+      
+      if zone_sizing.isDedicatedOutdoorAirHighSetpointTemperatureforDesignAutosized
+        doas_high_temp = "autosize"
+      else
+        doas_high_temp =  zone_sizing.dedicatedOutdoorAirHighSetpointTemperatureforDesign.get
+        doas_high_temp = OpenStudio.convert(doas_high_temp,"C","F").get
+      end
     end
     
-    num_spaces = zone.spaces.size   
+    file.puts "#{zone_name},#{air_loop_name},#{num_spaces},#{cooling_schedule},#{heating_schedule},#{humidifying_schedule},#{dehumidifying_schedule},#{zone_multiplier},#{cooling_design_method},#{cooling_design_SAT},#{cooling_design_SAT_diff},#{heating_design_method},#{heating_design_SAT},#{heating_design_SAT_diff},#{account_for_doas},#{doas_low_temp},#{doas_high_temp}"
     
-    file.puts "#{zone_name},#{air_loop_name},#{cooling_schedule},#{heating_schedule},#{humidifying_schedule},#{dehumidifying_schedule},#{zone_multiplier},#{num_spaces}"
-  
   end
   
   def writeAirLoopsToFile(file, model)
