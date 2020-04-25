@@ -8,3 +8,4 @@ C:\Program Files\OpenStudio 1.14.0\Ruby\openstudio\sketchup_plugin\user_scripts
 or 
 C:\openstudio-2.4.0\SketchUpPlugin\openstudio\sketchup_plugin\user_scripts
 (or whatever OpenStudio version you are using)
+how to add Euclid plugin?
